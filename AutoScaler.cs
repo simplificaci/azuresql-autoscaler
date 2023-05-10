@@ -112,7 +112,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         }
 
         [FunctionName("AutoScaler")]
-        public static void Run([TimerTrigger("*/15 * * * * *")]TimerInfo timer, ILogger log)
+        public static void Run([TimerTrigger("*/5 * * * * *")]TimerInfo timer, ILogger log)
         {
             var autoscalerConfig = new AutoScalerConfiguration();
 
