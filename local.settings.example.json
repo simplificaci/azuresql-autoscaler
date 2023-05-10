@@ -1,0 +1,23 @@
+{
+    "IsEncrypted": false,
+    "Values": {
+        "_AzureSQLConnection": "...",
+        "_HighThreshold": "70",
+        "_LowThreshold": "20",
+        "_RequiredDataPoints": "5",
+        "_vCoreMax": "8",
+        "_vCoreMin": "2"
+    },
+    "ConnectionStrings": {
+        "APPINSIGHTS_INSTRUMENTATIONKEY": "...",
+        "APPLICATIONINSIGHTS_CONNECTION_STRING": "...",
+        "AzureWebJobsStorage": "...",
+        "FUNCTIONS_EXTENSION_VERSION": "...",
+        "FUNCTIONS_WORKER_RUNTIME": "...",
+        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "...",
+        "WEBSITE_CONTENTSHARE": "..."
+    },
+    "Host": {
+        "CORS": "*"
+    }
+}
