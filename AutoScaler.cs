@@ -90,11 +90,11 @@ namespace Azure.SQL.DB.Hyperscale.Tools
 
     public class AutoScalerConfiguration
     {
-        public int vCoreMin = int.Parse(Environment.GetEnvironmentVariable("vCoreMin"));
-        public int vCoreMax = int.Parse(Environment.GetEnvironmentVariable("vCoreMax"));
-        public decimal HighThreshold = decimal.Parse(Environment.GetEnvironmentVariable("HighThreshold"));
-        public decimal LowThreshold = decimal.Parse(Environment.GetEnvironmentVariable("LowThreshold"));
-        public int RequiredDataPoints = int.Parse(Environment.GetEnvironmentVariable("RequiredDataPoints"));
+        public int vCoreMin = int.Parse(Environment.GetEnvironmentVariable("_vCoreMin"));
+        public int vCoreMax = int.Parse(Environment.GetEnvironmentVariable("_vCoreMax"));
+        public decimal HighThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_HighThreshold"));
+        public decimal LowThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_LowThreshold"));
+        public int RequiredDataPoints = int.Parse(Environment.GetEnvironmentVariable("_RequiredDataPoints"));
     }
 
     public static class AutoScaler
@@ -116,7 +116,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         {
             var autoscalerConfig = new AutoScalerConfiguration();
 
-            string connectionString = Environment.GetEnvironmentVariable("AzureSQLConnection");
+            string connectionString = Environment.GetEnvironmentVariable("_AzureSQLConnection");
             string databaseName = (new SqlConnectionStringBuilder(connectionString)).InitialCatalog;
 
             using (var conn = new SqlConnection(connectionString))
