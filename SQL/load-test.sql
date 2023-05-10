@@ -5,7 +5,7 @@
 		[Number],
 		Random
 	FROM
-		dbo.[Numbers]
+		dbo.[AutoscalerNumbers]
 	WHERE
 		[Number] BETWEEN 1 AND 300000
 )

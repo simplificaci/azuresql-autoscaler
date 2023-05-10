@@ -40,7 +40,7 @@ Scaling up or down is pretty fast in Hyperscale so responding to workload spikes
 
 Azure Function stores autoscaler data right into the monitored database itself, in the `dbo.AutoscalerMonitor` table. This is useful both to understand how and why the autoscaler took some actions, but also if you want to save historical data to create better autoscaling algorithms. Please use the script `./SQL/create-table` to setup the objects in the target database before running the Azure Function. If you plan to use the autoscaler in a production environment, is recommended to use a different database other than the monitored one to store historical autoscaler data.
 
-The provided script also create a sample `Numbers` table that can be used to execute some load testing to check how the autoscaler works.
+The provided script also create a sample `AutoscalerNumbers` table that can be used to execute some load testing to check how the autoscaler works.
 
 Autoscaler data, as an additional sample, is also sent to [Application Insight](https://docs.microsoft.com/en-us/azure/azure-functions/functions-monitoring#log-custom-telemetry-in-c-functions), so autoscler actions can be monitored directly from Azure Portal dashboard.
 
@@ -64,7 +64,7 @@ Deploy the solution to an Azure Function and then add the following [application
 
 ## Test
 
-To the the autoscaler, if you created the `Numbers` test table, you can run the query `./SQL/load-test.sql` to create some workload. It is suggested that you create a new Hyperscale database with 2vCores to run the test. Tool like [SQL Query Stress](https://github.com/ErikEJ/SqlQueryStress) can be used to execute multiple query in parallel. A sample configuration is available in `SQL` folder: just put the correct connection information and when run it will generate a 80% load on a Gen5 2vCore Hyperscale database. This will be enough to initiate a scale-up action.
+To the the autoscaler, if you created the `AutoscalerNumbers` test table, you can run the query `./SQL/load-test.sql` to create some workload. It is suggested that you create a new Hyperscale database with 2vCores to run the test. Tool like [SQL Query Stress](https://github.com/ErikEJ/SqlQueryStress) can be used to execute multiple query in parallel. A sample configuration is available in `SQL` folder: just put the correct connection information and when run it will generate a 80% load on a Gen5 2vCore Hyperscale database. This will be enough to initiate a scale-up action.
 
 ## Notes
 

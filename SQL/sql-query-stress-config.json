@@ -18,7 +18,7 @@
         "Password": "mypassword",
         "Server": "myserver.database.windows.net"
     },
-    "MainQuery": "WITH cte AS\u000d\u000a(\u000d\u000a\u0009SELECT\u000d\u000a\u0009\u0009CASE WHEN ([Number] % 2) = 1 THEN 1 ELSE 0 END AS GroupId,\u000d\u000a\u0009\u0009[Number],\u000d\u000a\u0009\u0009Random\u000d\u000a\u0009FROM\u000d\u000a\u0009\u0009dbo.[Numbers]\u000d\u000a\u0009WHERE\u000d\u000a\u0009\u0009[Number] BETWEEN 1 AND 300000\u000d\u000a)\u000d\u000aSELECT\u000d\u000a\u0009GroupId,\u000d\u000a\u0009COUNT(*),\u000d\u000a\u0009AVG(Random),\u000d\u000a\u0009STDEV(Random)\u000d\u000aFROM\u000d\u000a\u0009cte\u000d\u000aGROUP BY\u000d\u000a\u0009GroupId",
+    "MainQuery": "WITH cte AS\u000d\u000a(\u000d\u000a\u0009SELECT\u000d\u000a\u0009\u0009CASE WHEN ([Number] % 2) = 1 THEN 1 ELSE 0 END AS GroupId,\u000d\u000a\u0009\u0009[Number],\u000d\u000a\u0009\u0009Random\u000d\u000a\u0009FROM\u000d\u000a\u0009\u0009dbo.[AutoscalerNumbers]\u000d\u000a\u0009WHERE\u000d\u000a\u0009\u0009[Number] BETWEEN 1 AND 300000\u000d\u000a)\u000d\u000aSELECT\u000d\u000a\u0009GroupId,\u000d\u000a\u0009COUNT(*),\u000d\u000a\u0009AVG(Random),\u000d\u000a\u0009STDEV(Random)\u000d\u000aFROM\u000d\u000a\u0009cte\u000d\u000aGROUP BY\u000d\u000a\u0009GroupId",
     "NumIterations": 1200,
     "NumThreads": 2,
     "ParamDbConnectionInfo": {
