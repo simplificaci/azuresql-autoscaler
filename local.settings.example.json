@@ -3,10 +3,11 @@
     "Values": {
         "_AzureSQLConnection": "...",
         "_HighThreshold": "70",
-        "_LowThreshold": "20",
-        "_RequiredDataPoints": "5",
-        "_vCoreMax": "8",
-        "_vCoreMin": "2"
+        "_LowThreshold": "20", 
+        "_RequiredDataPointsScaleUp": "5",
+        "_RequiredDataPointsScaleDown": "20",
+        "_vCoreMax": "10",
+        "_vCoreMin": "4"
     },
     "ConnectionStrings": {
         "APPINSIGHTS_INSTRUMENTATIONKEY": "...",
