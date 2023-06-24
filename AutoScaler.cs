@@ -215,10 +215,10 @@ namespace Azure.SQL.DB.Hyperscale.Tools
 
             if (scaler != Scaler.Down) return false;
 
-            // Scale Down
             //INFO - Unlike Scale Up, note that here the "AND" condition, this is because it only makes sense to decrease
             //INFO - if all the requirements are lower than expected, while for Scale Up one of them is necessary, so there,
             //INFO - we have an "OR" condition
+            // Scale Down
             if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.LowCpuPercent &&
                 usageInfo.MovingAvgWorkersPercent < autoscalerConfig.LowWorkersPercent)
             {
@@ -313,6 +313,8 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             log.LogMetric("DataPoints", usageInfo.DataPoints);
             log.LogMetric("AvgCpuPercent", Convert.ToDouble(usageInfo.AvgCpuPercent));
             log.LogMetric("MovingAvgCpuPercent", Convert.ToDouble(usageInfo.MovingAvgCpuPercent));
+            log.LogMetric("WorkersPercent", Convert.ToDouble(usageInfo.WorkersPercent));
+            log.LogMetric("MovingAvgWorkersPercent", Convert.ToDouble(usageInfo.MovingAvgWorkersPercent));
             log.LogMetric("CurrentCores", Convert.ToDouble(currentSlo.Cores));
             log.LogMetric("TargetCores", Convert.ToDouble(targetSlo.Cores));
 
