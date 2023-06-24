@@ -80,6 +80,8 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         public String ServiceObjective = String.Empty;
         public Decimal AvgCpuPercent = 0;
         public Decimal MovingAvgCpuPercent = 0;
+        public Decimal WorkersPercent = 0;
+        public Decimal MovingAvgWorkersPercent = 0;
         public int DataPoints = 0;
     }
 
@@ -94,8 +96,10 @@ namespace Azure.SQL.DB.Hyperscale.Tools
 
         public int vCoreMin = int.Parse(Environment.GetEnvironmentVariable("_vCoreMin"));
         public int vCoreMax = int.Parse(Environment.GetEnvironmentVariable("_vCoreMax"));
-        public decimal LowThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_LowThreshold"));
-        public decimal HighThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_HighThreshold"));
+        public decimal LowCpuPercent = decimal.Parse(Environment.GetEnvironmentVariable("_LowCpuPercent"));
+        public decimal HighCpuPercent = decimal.Parse(Environment.GetEnvironmentVariable("_HighCpuPercent"));
+        public decimal LowWorkersPercent = decimal.Parse(Environment.GetEnvironmentVariable("_LowWorkersPercent"));
+        public decimal HighWorkersPercent = decimal.Parse(Environment.GetEnvironmentVariable("_HighWorkersPercent"));
         public int RequiredDataPoints = 0;
 
         public AutoScalerConfiguration(string scale)
@@ -111,6 +115,10 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         public static readonly List<String> GEN4 = new List<String>() { "hs_gen4_1", "hs_gen4_2", "hs_gen4_3", "hs_gen4_4", "hs_gen4_5", "hs_gen4_6", "hs_gen4_7", "hs_gen4_8", "hs_gen4_9", "hs_gen4_10", "hs_gen4_16", "hs_gen4_24" };
 
         public static readonly List<String> GEN5 = new List<String>() { "hs_gen5_2", "hs_gen5_4", "hs_gen5_6", "hs_gen5_8", "hs_gen5_10", "hs_gen5_12", "hs_gen5_14", "hs_gen5_16", "hs_gen5_18", "hs_gen5_20", "hs_gen5_24", "hs_gen5_32", "hs_gen5_40", "hs_gen5_80" };
+
+
+        // 
+        //https://learn.microsoft.com/en-us/azure/azure-sql/database/resource-limits-vcore-single-databases?view=azuresql#gen5-hardware-part-1-2
 
         public static Dictionary<int, List<String>> HyperscaleSLOs = new Dictionary<int, List<String>>();
 
@@ -170,20 +178,23 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             if (scaler != Scaler.Up) return false;
 
             // Scale Up
-            if (usageInfo.MovingAvgCpuPercent > autoscalerConfig.HighThreshold)
+            //INFO - If the average reaches at least one of the conditions, then the scale up is necessary.
+            //INFO - Unlike Scale Down, where all conditions must be met.
+            if (usageInfo.MovingAvgCpuPercent > autoscalerConfig.HighCpuPercent ||
+                usageInfo.MovingAvgWorkersPercent > autoscalerConfig.HighWorkersPercent)
             {
                 targetSlo = GetServiceObjective(currentSlo, SearchDirection.Next);
                 if (targetSlo != null && currentSlo.Cores < autoscalerConfig.vCoreMax && currentSlo != targetSlo)
                 {
                     if (!Debugger.IsAttached)
                     {
-                        log.LogInformation($"HIGH threshold reached: scaling up to {targetSlo}");
+                        log.LogInformation($"HIGH CpuPercent reached: scaling up to {targetSlo}");
                         conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
                         return true;
                     }
                     else
                     {
-                        Console.WriteLine("HIGH threshold reached! [IGNORED by debugging attached]");
+                        Console.WriteLine("HIGH CpuPercent reached! [IGNORED by debugging attached]");
                     }
                 }
             }
@@ -205,20 +216,24 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             if (scaler != Scaler.Down) return false;
 
             // Scale Down
-            if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.LowThreshold)
+            //INFO - Unlike Scale Up, note that here the "AND" condition, this is because it only makes sense to decrease
+            //INFO - if all the requirements are lower than expected, while for Scale Up one of them is necessary, so there,
+            //INFO - we have an "OR" condition
+            if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.LowCpuPercent &&
+                usageInfo.MovingAvgWorkersPercent < autoscalerConfig.LowWorkersPercent)
             {
                 targetSlo = GetServiceObjective(currentSlo, SearchDirection.Previous);
                 if (targetSlo != null && currentSlo.Cores > autoscalerConfig.vCoreMin && currentSlo != targetSlo)
                 {
                     if (!Debugger.IsAttached)
                     {
-                        log.LogInformation($"LOW threshold reached: scaling down to {targetSlo}");
+                        log.LogInformation($"LOW CpuPercent reached: scaling down to {targetSlo}");
                         conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
                         return true;
                     }
                     else
                     {
-                        Console.WriteLine("LOW threshold reached! [IGNORED by debugging attached]");
+                        Console.WriteLine("LOW CpuPercent reached! [IGNORED by debugging attached]");
                     }
                 }
             }
@@ -244,6 +259,8 @@ namespace Azure.SQL.DB.Hyperscale.Tools
                         databasepropertyex(db_name(), 'ServiceObjective') as ServiceObjective,
                         [avg_cpu_percent] as AvgCpuPercent, 
                         avg([avg_cpu_percent]) over (order by end_time desc rows between current row and {followingRows} following) as MovingAvgCpuPercent,
+                        [max_worker_percent] as WorkersPercent, 
+                        avg([max_worker_percent]) over (order by end_time desc rows between current row and {followingRows} following) as MovingAvgWorkersPercent,
                         count(*) over (order by end_time desc rows between current row and {followingRows} following) as DataPoints
                     from 
                         sys.dm_db_resource_stats
@@ -256,6 +273,12 @@ namespace Azure.SQL.DB.Hyperscale.Tools
                 {
                     log.LogInformation("No information received from server.");
                     return;
+                }
+
+                if (Debugger.IsAttached)
+                {
+                    Console.WriteLine($"MovingAvgCpuPercent: {usageInfo.MovingAvgCpuPercent}");
+                    Console.WriteLine($"MovingAvgWorkersPercent: {usageInfo.MovingAvgWorkersPercent}");
                 }
 
                 // Decode current SLO

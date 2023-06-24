@@ -50,15 +50,18 @@ Deploy the solution to an Azure Function and then add the following [application
 
 ```json
 "_AzureSQLConnection": "...",
-"_LowThreshold": 20,
-"_HighThreshold": 20,
+"_LowCpuPercent": "20",
+"_HighCpuPercent": "70",
+"_LowWorkersPercent": "30",
+"_HighWorkersPercent": "70",
 "_vCoreMin": 2,
 "_vCoreMax": 8,
 "_RequiredDataPoints": 5
 ```
 
 - AzureSQLConnection: Connection string to Azure SQL Hyperscale to monitor. Make sure the user used to login to the database has the [right permission](https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-database-transact-sql?view=azuresqldb-current#permissions-1) to run ALTER DATABASE command.
-- LowThreshold, HighThreshold: the minium and maximum threshold values after which scaling up or down will be initiated
+- LowCpuPercent, HighCpuPercent: the minium and maximum threshold cpu values after which scaling up or down will be initiated
+- LowWorkersPercent, HighWorkersPercent: the minium and maximum threshold workers values after which scaling up or down will be initiated
 - vCoreMax, vCoreMin: the maximum and minimum number of cores you want to use as limits to scale up and down
 - RequiredDataPoints: Number of data points that needs to be gathered before initiating any autoscale action
 

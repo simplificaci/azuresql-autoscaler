@@ -2,8 +2,10 @@
     "IsEncrypted": false,
     "Values": {
         "_AzureSQLConnection": "...",
-        "_LowThreshold": "20",
-        "_HighThreshold": "20",
+        "_LowCpuPercent": "20",
+        "_HighCpuPercent": "70",
+        "_LowWorkersPercent": "30",
+        "_HighWorkersPercent": "70",
         "_RequiredDataPointsScaleUp": "5",
         "_RequiredDataPointsScaleDown": "20",
         "_vCoreMax": "10",
