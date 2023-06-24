@@ -148,7 +148,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         }
 
         [FunctionName("AutoScaler_Horizontal_Down")]
-        public static void Horizontal_Down([TimerTrigger("*/60 * * * * *")] TimerInfo timer, ILogger log)
+        public static void Horizontal_Down([TimerTrigger("*/30 * * * * *")] TimerInfo timer, ILogger log)
         {
             //TODO Azure Virtual Machine Scale Sets
         }
