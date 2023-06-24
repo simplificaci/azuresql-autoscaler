@@ -14,7 +14,7 @@ description: "Automatically scale up or down Azure SQL Hyperscale depending on a
 urlFragment: "azure-sql-hyperscale-autoscaler"
 ---
 
-# Azure SQL Hyperscale Autoscaler
+# Azure SQL Hyperscale Autoscaler (SimplificaCI Version)
 
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -49,16 +49,15 @@ Autoscaler data, as an additional sample, is also sent to [Application Insight](
 Deploy the solution to an Azure Function and then add the following [application settings](https://docs.microsoft.com/en-us/azure/azure-functions/functions-how-to-use-azure-function-app-settings#settings):
 
 ```json
-"AzureSQLConnection": "...",
-"HighThreshold": 70,
-"LowThreshold": 20,
-"vCoreMin": 2,
-"vCoreMax": 8,
-"RequiredDataPoints": 5
+"_AzureSQLConnection": "...",
+"_Threshold": 20,
+"_vCoreMin": 2,
+"_vCoreMax": 8,
+"_RequiredDataPoints": 5
 ```
 
 - AzureSQLConnection: Connection string to Azure SQL Hyperscale to monitor. Make sure the user used to login to the database has the [right permission](https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-database-transact-sql?view=azuresqldb-current#permissions-1) to run ALTER DATABASE command.
-- HighThreshold, LowThreshold: the minium and maximum threshold values after which scaling up or down will be initiated
+- Threshold: the minium and maximum threshold values after which scaling up or down will be initiated
 - vCoreMax, vCoreMin: the maximum and minimum number of cores you want to use as limits to scale up and down
 - RequiredDataPoints: Number of data points that needs to be gathered before initiating any autoscale action
 

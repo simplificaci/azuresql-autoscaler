@@ -94,8 +94,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
 
         public int vCoreMin = int.Parse(Environment.GetEnvironmentVariable("_vCoreMin"));
         public int vCoreMax = int.Parse(Environment.GetEnvironmentVariable("_vCoreMax"));
-        public decimal HighThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_HighThreshold"));
-        public decimal LowThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_LowThreshold"));
+        public decimal Threshold = decimal.Parse(Environment.GetEnvironmentVariable("_Threshold"));
         public int RequiredDataPoints = 0;
 
         public AutoScalerConfiguration(string scale)
@@ -154,10 +153,78 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         [FunctionName("AutoScaler_Vertical_Down")]
         public static void Vertical_Down([TimerTrigger("*/60 * * * *")] TimerInfo timer, ILogger log)
         {
-            AutoScalerVerticalRun(Scaler.Down, timer, log);
+           AutoScalerVerticalRun(Scaler.Down, timer, log);
+        }
+
+        private static Boolean ScaleUp(Scaler scaler,
+                                       UsageInfo usageInfo,
+                                       AutoScalerConfiguration autoscalerConfig,
+                                       HyperScaleTier targetSlo,
+                                       HyperScaleTier currentSlo,
+                                       ILogger log,
+                                       SqlConnection conn,
+                                       string databaseName)
+        {
+
+            if (scaler != Scaler.Up) return false;
+
+            // Scale Up
+            if (usageInfo.MovingAvgCpuPercent > autoscalerConfig.Threshold)
+            {
+                targetSlo = GetServiceObjective(currentSlo, SearchDirection.Next);
+                if (targetSlo != null && currentSlo.Cores < autoscalerConfig.vCoreMax && currentSlo != targetSlo)
+                {
+                    if (!Debugger.IsAttached)
+                    {
+                        log.LogInformation($"HIGH threshold reached: scaling up to {targetSlo}");
+                        conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
+                        return true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("HIGH threshold reached! [IGNORED by debugging attached]");
+                    }
+                }
+            }
+
+            return false;
         }
 
 
+        private static Boolean ScaleDown(Scaler scaler,
+                                         UsageInfo usageInfo,
+                                         AutoScalerConfiguration autoscalerConfig,
+                                         HyperScaleTier targetSlo,
+                                         HyperScaleTier currentSlo,
+                                         ILogger log,
+                                         SqlConnection conn,
+                                         string databaseName)
+        {
+
+            if (scaler != Scaler.Down) return false;
+
+            // Scale Down
+            if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.Threshold)
+            {
+                targetSlo = GetServiceObjective(currentSlo, SearchDirection.Previous);
+                if (targetSlo != null && currentSlo.Cores > autoscalerConfig.vCoreMin && currentSlo != targetSlo)
+                {
+                    if (!Debugger.IsAttached)
+                    {
+                        log.LogInformation($"LOW threshold reached: scaling down to {targetSlo}");
+                        conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
+                        return true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("LOW threshold reached! [IGNORED by debugging attached]");
+                    }
+                }
+            }
+
+            return false;
+        }
+         
         private static void AutoScalerVerticalRun(Scaler scaler, TimerInfo timer, ILogger log)
         {
 
@@ -201,47 +268,11 @@ namespace Azure.SQL.DB.Hyperscale.Tools
                     return;
                 }
 
-                // Scale Up
-                if (scaler == Scaler.Up &&
-                    usageInfo.MovingAvgCpuPercent > autoscalerConfig.HighThreshold)
-                {
-                    targetSlo = GetServiceObjective(currentSlo, SearchDirection.Next);
-                    if (targetSlo != null && currentSlo.Cores < autoscalerConfig.vCoreMax && currentSlo != targetSlo)
-                    {
-                        if (!Debugger.IsAttached)
-                        {
-                            log.LogInformation($"HIGH threshold reached: scaling up to {targetSlo}");
-                            conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
-                        }
-                        else
-                        {
-                            Console.WriteLine("HIGH threshold reached! [IGNORED by debugging attached]");
-                        }
-                    }
-                }
+                ScaleDown(scaler, usageInfo, autoscalerConfig, targetSlo, currentSlo, log, conn, databaseName);
+                ScaleUp(scaler, usageInfo, autoscalerConfig, targetSlo, currentSlo, log, conn, databaseName);
 
-                // Scale Down
-                if (scaler == Scaler.Down &&
-                    usageInfo.MovingAvgCpuPercent < autoscalerConfig.LowThreshold)
-                {
-                    targetSlo = GetServiceObjective(currentSlo, SearchDirection.Previous);
-                    if (targetSlo != null && currentSlo.Cores > autoscalerConfig.vCoreMin && currentSlo != targetSlo)
-                    {
-                        if (!Debugger.IsAttached)
-                        {
-                            log.LogInformation($"LOW threshold reached: scaling down to {targetSlo}");
-                            conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
-                        }
-                        else
-                        {
-                            Console.WriteLine("LOW threshold reached! [IGNORED by debugging attached]");
-                        }
-                    }
-                }
-
-                // Write current SLO to monitor table  
                 WriteMetrics(log, usageInfo, currentSlo, targetSlo);
-                conn.Execute("INSERT INTO [dbo].[AutoscalerMonitor] (RequestedSLO, UsageInfo) VALUES (@RequestedSLO, @UsageInfo)", new { @RequestedSLO = targetSlo.ToString().ToUpper(), UsageInfo = JsonConvert.SerializeObject(usageInfo) });
+
             }
 
         }
@@ -250,10 +281,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         {
             log.LogInformation("Not enough data points.");
             WriteMetrics(log, usageInfo, currentSlo, targetSlo);
-            conn.Execute("INSERT INTO [dbo].[AutoscalerMonitor] (RequestedSLO, UsageInfo) VALUES (NULL, @UsageInfo)", new { UsageInfo = JsonConvert.SerializeObject(usageInfo) });
-
             Console.WriteLine("Not enough data points.");
-
         }
 
         private static void WriteMetrics(ILogger log, UsageInfo usageInfo, HyperScaleTier currentSlo, HyperScaleTier targetSlo)

@@ -1,9 +1,8 @@
 {
     "IsEncrypted": false,
     "Values": {
-        "_AzureSQLConnection": "...",
-        "_HighThreshold": "70",
-        "_LowThreshold": "20", 
+        "_AzureSQLConnection": "...", 
+        "_Threshold": "20", 
         "_RequiredDataPointsScaleUp": "5",
         "_RequiredDataPointsScaleDown": "20",
         "_vCoreMax": "10",
