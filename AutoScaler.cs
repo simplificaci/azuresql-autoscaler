@@ -94,7 +94,8 @@ namespace Azure.SQL.DB.Hyperscale.Tools
 
         public int vCoreMin = int.Parse(Environment.GetEnvironmentVariable("_vCoreMin"));
         public int vCoreMax = int.Parse(Environment.GetEnvironmentVariable("_vCoreMax"));
-        public decimal Threshold = decimal.Parse(Environment.GetEnvironmentVariable("_Threshold"));
+        public decimal LowThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_LowThreshold"));
+        public decimal HighThreshold = decimal.Parse(Environment.GetEnvironmentVariable("_HighThreshold"));
         public int RequiredDataPoints = 0;
 
         public AutoScalerConfiguration(string scale)
@@ -169,7 +170,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             if (scaler != Scaler.Up) return false;
 
             // Scale Up
-            if (usageInfo.MovingAvgCpuPercent > autoscalerConfig.Threshold)
+            if (usageInfo.MovingAvgCpuPercent > autoscalerConfig.HighThreshold)
             {
                 targetSlo = GetServiceObjective(currentSlo, SearchDirection.Next);
                 if (targetSlo != null && currentSlo.Cores < autoscalerConfig.vCoreMax && currentSlo != targetSlo)
@@ -204,7 +205,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             if (scaler != Scaler.Down) return false;
 
             // Scale Down
-            if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.Threshold)
+            if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.LowThreshold)
             {
                 targetSlo = GetServiceObjective(currentSlo, SearchDirection.Previous);
                 if (targetSlo != null && currentSlo.Cores > autoscalerConfig.vCoreMin && currentSlo != targetSlo)
