@@ -4,43 +4,53 @@ using Microsoft.Data.SqlClient;
 using Dapper;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Azure.SQL.DB.Hyperscale.Tools.Classes;
+using AzuresqlAutoscaler;
 using Microsoft.Azure.Functions.Worker;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 //https://learn.microsoft.com/en-us/azure/azure-sql/database/resource-limits-vcore-single-databases?view=azuresql#gen5-hardware-part-1-2
 
-namespace Azure.SQL.DB.Hyperscale.Tools.Classes
+namespace AzuresqlAutoscaler
 {
 
     public class AutoScaler
     {
-
-        public AutoScaler(ILoggerFactory loggerFactory)
-        {
-
-            HyperscaleSLOs.Add(4, GEN4);
-            HyperscaleSLOs.Add(5, GEN5);
-        }
+        private readonly ILogger _logger;
+        private static string? connectionString ;
+        private static string? databaseName;
 
         public static readonly List<string> GEN4 = new List<string>() { "hs_gen4_1", "hs_gen4_2", "hs_gen4_3", "hs_gen4_4", "hs_gen4_5", "hs_gen4_6", "hs_gen4_7", "hs_gen4_8", "hs_gen4_9", "hs_gen4_10", "hs_gen4_16", "hs_gen4_24" };
         public static readonly List<string> GEN5 = new List<string>() { "hs_gen5_2", "hs_gen5_4", "hs_gen5_6", "hs_gen5_8", "hs_gen5_10", "hs_gen5_12", "hs_gen5_14", "hs_gen5_16", "hs_gen5_18", "hs_gen5_20", "hs_gen5_24", "hs_gen5_32", "hs_gen5_40", "hs_gen5_80" };
         public static Dictionary<int, List<string>> HyperscaleSLOs = new Dictionary<int, List<string>>();
 
-        enum Scaler
+        enum Scaler { Up, Down }
+
+        public AutoScaler(ILoggerFactory loggerFactory)
         {
-            Up,
-            Down,
+            _logger = loggerFactory.CreateLogger<AutoScaler>();
+
+            if (string.IsNullOrEmpty(connectionString))
+            { 
+
+                connectionString = Environment.GetEnvironmentVariable("_AzureSQLConnection").ToString();
+                databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog.ToString();
+
+                HyperscaleSLOs.Add(4, GEN4);
+                HyperscaleSLOs.Add(5, GEN5);
+
+            }
         }
 
+
         [Function("AutoScaler_Vertical_Up")]
-        public static void Vertical_Up([TimerTrigger("*/10 * * * * *", RunOnStartup = true)] ILogger log)
+        public void Vertical_Up([TimerTrigger("*/10 * * * * *")] TimerInfo myTimer)
         {
-            AutoScalerVerticalRun(Scaler.Up,   log);
+            AutoScalerVerticalRun(Scaler.Up, _logger);
         }
 
         [Function("AutoScaler_Vertical_Down")]
-        public static void Vertical_Down([TimerTrigger("*/10 * * * * *", RunOnStartup = true)]  ILogger log)
+        public void Vertical_Down([TimerTrigger("*/10 * * * * *")] TimerInfo myTimer)
         {
-            AutoScalerVerticalRun(Scaler.Down,  log);
+            AutoScalerVerticalRun(Scaler.Down, _logger);
         }
 
         private static void ScaleUp(Scaler scaler,
@@ -112,7 +122,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
                     }
                 }
             }
-             
+
         }
 
         private static void AutoScalerVerticalRun(Scaler scaler, ILogger log)
@@ -120,8 +130,6 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
 
             var autoscalerConfig = new AutoScalerConfiguration(scaler.ToString());
 
-            string connectionString = Environment.GetEnvironmentVariable("_AzureSQLConnection");
-            string databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
 
             using (var conn = new SqlConnection(connectionString))
             {

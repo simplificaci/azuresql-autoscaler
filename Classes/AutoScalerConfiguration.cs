@@ -1,5 +1,5 @@
 ﻿
-namespace Azure.SQL.DB.Hyperscale.Tools.Classes
+namespace AzuresqlAutoscaler
 {
 
 
