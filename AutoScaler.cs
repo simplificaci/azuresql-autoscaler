@@ -1,26 +1,28 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Host;
-using Microsoft.Extensions.Logging;
 using Microsoft.Data.SqlClient;
 using Dapper;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Azure.SQL.DB.Hyperscale.Tools.Classes;
+using Microsoft.Azure.Functions.Worker;
+//https://learn.microsoft.com/en-us/azure/azure-sql/database/resource-limits-vcore-single-databases?view=azuresql#gen5-hardware-part-1-2
 
 namespace Azure.SQL.DB.Hyperscale.Tools.Classes
 {
-    public static class AutoScaler
+
+    public class AutoScaler
     {
+
+        public AutoScaler(ILoggerFactory loggerFactory)
+        {
+
+            HyperscaleSLOs.Add(4, GEN4);
+            HyperscaleSLOs.Add(5, GEN5);
+        }
+
         public static readonly List<string> GEN4 = new List<string>() { "hs_gen4_1", "hs_gen4_2", "hs_gen4_3", "hs_gen4_4", "hs_gen4_5", "hs_gen4_6", "hs_gen4_7", "hs_gen4_8", "hs_gen4_9", "hs_gen4_10", "hs_gen4_16", "hs_gen4_24" };
-
         public static readonly List<string> GEN5 = new List<string>() { "hs_gen5_2", "hs_gen5_4", "hs_gen5_6", "hs_gen5_8", "hs_gen5_10", "hs_gen5_12", "hs_gen5_14", "hs_gen5_16", "hs_gen5_18", "hs_gen5_20", "hs_gen5_24", "hs_gen5_32", "hs_gen5_40", "hs_gen5_80" };
-
-
-        // 
-        //https://learn.microsoft.com/en-us/azure/azure-sql/database/resource-limits-vcore-single-databases?view=azuresql#gen5-hardware-part-1-2
-
         public static Dictionary<int, List<string>> HyperscaleSLOs = new Dictionary<int, List<string>>();
 
         enum Scaler
@@ -29,36 +31,29 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
             Down,
         }
 
-        static AutoScaler()
+        [Function("AutoScaler_Vertical_Up")]
+        public static void Vertical_Up([TimerTrigger("*/10 * * * * *", RunOnStartup = true)] ILogger log)
         {
-            HyperscaleSLOs.Add(4, GEN4);
-            HyperscaleSLOs.Add(5, GEN5);
-
+            AutoScalerVerticalRun(Scaler.Up,   log);
         }
 
-        [FunctionName("AutoScaler_Vertical_Up")]
-        public static void Vertical_Up([TimerTrigger("*/10 * * * * *", RunOnStartup = true)] TimerInfo timer, ILogger log)
+        [Function("AutoScaler_Vertical_Down")]
+        public static void Vertical_Down([TimerTrigger("*/10 * * * * *", RunOnStartup = true)]  ILogger log)
         {
-            AutoScalerVerticalRun(Scaler.Up, timer, log);
+            AutoScalerVerticalRun(Scaler.Down,  log);
         }
 
-        [FunctionName("AutoScaler_Vertical_Down")]
-        public static void Vertical_Down([TimerTrigger("*/10 * * * * *", RunOnStartup = true)] TimerInfo timer, ILogger log)
-        {
-            AutoScalerVerticalRun(Scaler.Down, timer, log);
-        }
-
-        private static bool ScaleUp(Scaler scaler,
+        private static void ScaleUp(Scaler scaler,
                                        UsageInfo usageInfo,
                                        AutoScalerConfiguration autoscalerConfig,
-                                       HyperScaleTier targetSlo,
                                        HyperScaleTier currentSlo,
                                        ILogger log,
                                        SqlConnection conn,
                                        string databaseName)
         {
 
-            if (scaler != Scaler.Up) return false;
+            if (scaler != Scaler.Up)
+                return;
 
             // Scale Up
             //INFO - If the average reaches at least one of the conditions, then the scale up is necessary.
@@ -66,37 +61,35 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
             if (usageInfo.MovingAvgCpuPercent > autoscalerConfig.HighCpuPercent ||
                 usageInfo.MovingAvgWorkersPercent > autoscalerConfig.HighWorkersPercent)
             {
-                targetSlo = GetServiceObjective(currentSlo, SearchDirection.Next);
+                HyperScaleTier targetSlo = GetServiceObjective(currentSlo, SearchDirection.Next);
                 if (targetSlo != null && currentSlo.Cores < autoscalerConfig.vCoreMax && currentSlo != targetSlo)
                 {
                     if (!Debugger.IsAttached)
                     {
                         log.LogInformation($"HIGH CpuPercent reached: scaling up to {targetSlo}");
                         conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
-                        return true;
-                    }
-                    else
+                        return;
+                    } else
                     {
                         Console.WriteLine("HIGH CpuPercent reached! [IGNORED by debugging attached]");
                     }
                 }
             }
 
-            return false;
         }
 
 
-        private static bool ScaleDown(Scaler scaler,
+        private static void ScaleDown(Scaler scaler,
                                          UsageInfo usageInfo,
                                          AutoScalerConfiguration autoscalerConfig,
-                                         HyperScaleTier targetSlo,
                                          HyperScaleTier currentSlo,
                                          ILogger log,
                                          SqlConnection conn,
                                          string databaseName)
         {
 
-            if (scaler != Scaler.Down) return false;
+            if (scaler != Scaler.Down)
+                return;
 
             //INFO - Unlike Scale Up, note that here the "AND" condition, this is because it only makes sense to decrease
             //INFO - if all the requirements are lower than expected, while for Scale Up one of them is necessary, so there,
@@ -105,26 +98,24 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
             if (usageInfo.MovingAvgCpuPercent < autoscalerConfig.LowCpuPercent &&
                 usageInfo.MovingAvgWorkersPercent < autoscalerConfig.LowWorkersPercent)
             {
-                targetSlo = GetServiceObjective(currentSlo, SearchDirection.Previous);
+                HyperScaleTier targetSlo = GetServiceObjective(currentSlo, SearchDirection.Previous);
                 if (targetSlo != null && currentSlo.Cores > autoscalerConfig.vCoreMin && currentSlo != targetSlo)
                 {
                     if (!Debugger.IsAttached)
                     {
                         log.LogInformation($"LOW CpuPercent reached: scaling down to {targetSlo}");
                         conn.Execute($"ALTER DATABASE [{databaseName}] MODIFY (SERVICE_OBJECTIVE = '{targetSlo}')");
-                        return true;
-                    }
-                    else
+                        return;
+                    } else
                     {
                         Console.WriteLine("LOW CpuPercent reached! [IGNORED by debugging attached]");
                     }
                 }
             }
-
-            return false;
+             
         }
 
-        private static void AutoScalerVerticalRun(Scaler scaler, TimerInfo timer, ILogger log)
+        private static void AutoScalerVerticalRun(Scaler scaler, ILogger log)
         {
 
             var autoscalerConfig = new AutoScalerConfiguration(scaler.ToString());
@@ -175,8 +166,8 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
                     return;
                 }
 
-                ScaleDown(scaler, usageInfo, autoscalerConfig, targetSlo, currentSlo, log, conn, databaseName);
-                ScaleUp(scaler, usageInfo, autoscalerConfig, targetSlo, currentSlo, log, conn, databaseName);
+                ScaleDown(scaler, usageInfo, autoscalerConfig, currentSlo, log, conn, databaseName);
+                ScaleUp(scaler, usageInfo, autoscalerConfig, currentSlo, log, conn, databaseName);
 
                 WriteMetrics(log, usageInfo, currentSlo, targetSlo);
 
@@ -224,5 +215,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools.Classes
 
             return targetSLO;
         }
+
+
     }
 }
