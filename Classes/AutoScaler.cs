@@ -9,118 +9,19 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 
-namespace Azure.SQL.DB.Hyperscale.Tools
+namespace Azure.SQL.DB.Hyperscale.Tools.Classes
 {
-    public class HyperScaleTier
-    {
-        private readonly string Name = "hs";
-        public int Generation = 5;
-        public int Cores = 4;
-
-        public override string ToString()
-        {
-            return $"{Name}_gen{Generation}_{Cores}".ToUpper();
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj is null)
-                return false;
-
-            if (object.ReferenceEquals(this, obj))
-                return true;
-
-            if (this.GetType() != obj.GetType())
-                return false;
-
-            return this.ToString() == obj.ToString();
-        }
-
-        public override int GetHashCode()
-        {
-            return this.ToString().GetHashCode();
-        }
-
-        public static bool operator ==(HyperScaleTier lhs, HyperScaleTier rhs)
-        {
-            if (lhs is null)
-            {
-                if (rhs is null)
-                    return true;
-
-                return false;
-            }
-
-            return lhs.Equals(rhs);
-        }
-
-        public static bool operator !=(HyperScaleTier lhs, HyperScaleTier rhs)
-        {
-            return !(lhs == rhs);
-        }
-
-        public static HyperScaleTier Parse(string tierName)
-        {
-            var curName = tierName.ToLower();
-            var parts = curName.Split('_');
-
-            if (parts[0] != "hs") throw new ArgumentException($"'{tierName}' is not an Hyperscale Tier");
-
-            var result = new HyperScaleTier();
-            result.Generation = int.Parse(parts[1].Replace("gen", string.Empty));
-            result.Cores = int.Parse(parts[2]);
-
-            return result;
-        }
-    }
-
-    public class UsageInfo
-    {
-        public DateTime TimeStamp = DateTime.Now;
-        public String ServiceObjective = String.Empty;
-        public Decimal AvgCpuPercent = 0;
-        public Decimal MovingAvgCpuPercent = 0;
-        public Decimal WorkersPercent = 0;
-        public Decimal MovingAvgWorkersPercent = 0;
-        public int DataPoints = 0;
-    }
-
-    public enum SearchDirection
-    {
-        Next,
-        Previous
-    }
-
-    public class AutoScalerConfiguration
-    {
-
-        public int vCoreMin = int.Parse(Environment.GetEnvironmentVariable("_vCoreMin"));
-        public int vCoreMax = int.Parse(Environment.GetEnvironmentVariable("_vCoreMax"));
-        public decimal LowCpuPercent = decimal.Parse(Environment.GetEnvironmentVariable("_LowCpuPercent"));
-        public decimal HighCpuPercent = decimal.Parse(Environment.GetEnvironmentVariable("_HighCpuPercent"));
-        public decimal LowWorkersPercent = decimal.Parse(Environment.GetEnvironmentVariable("_LowWorkersPercent"));
-        public decimal HighWorkersPercent = decimal.Parse(Environment.GetEnvironmentVariable("_HighWorkersPercent"));
-        public int RequiredDataPoints = 0;
-
-        public AutoScalerConfiguration(string scale)
-        {
-            RequiredDataPoints = int.Parse(Environment.GetEnvironmentVariable($"_RequiredDataPointsScale{scale}"));
-
-        }
-
-    }
-
     public static class AutoScaler
     {
-        public static readonly List<String> GEN4 = new List<String>() { "hs_gen4_1", "hs_gen4_2", "hs_gen4_3", "hs_gen4_4", "hs_gen4_5", "hs_gen4_6", "hs_gen4_7", "hs_gen4_8", "hs_gen4_9", "hs_gen4_10", "hs_gen4_16", "hs_gen4_24" };
+        public static readonly List<string> GEN4 = new List<string>() { "hs_gen4_1", "hs_gen4_2", "hs_gen4_3", "hs_gen4_4", "hs_gen4_5", "hs_gen4_6", "hs_gen4_7", "hs_gen4_8", "hs_gen4_9", "hs_gen4_10", "hs_gen4_16", "hs_gen4_24" };
 
-        public static readonly List<String> GEN5 = new List<String>() { "hs_gen5_2", "hs_gen5_4", "hs_gen5_6", "hs_gen5_8", "hs_gen5_10", "hs_gen5_12", "hs_gen5_14", "hs_gen5_16", "hs_gen5_18", "hs_gen5_20", "hs_gen5_24", "hs_gen5_32", "hs_gen5_40", "hs_gen5_80" };
+        public static readonly List<string> GEN5 = new List<string>() { "hs_gen5_2", "hs_gen5_4", "hs_gen5_6", "hs_gen5_8", "hs_gen5_10", "hs_gen5_12", "hs_gen5_14", "hs_gen5_16", "hs_gen5_18", "hs_gen5_20", "hs_gen5_24", "hs_gen5_32", "hs_gen5_40", "hs_gen5_80" };
 
 
         // 
         //https://learn.microsoft.com/en-us/azure/azure-sql/database/resource-limits-vcore-single-databases?view=azuresql#gen5-hardware-part-1-2
 
-        public static Dictionary<int, List<String>> HyperscaleSLOs = new Dictionary<int, List<String>>();
+        public static Dictionary<int, List<string>> HyperscaleSLOs = new Dictionary<int, List<string>>();
 
         enum Scaler
         {
@@ -134,20 +35,20 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             HyperscaleSLOs.Add(5, GEN5);
 
         }
-         
+
         [FunctionName("AutoScaler_Vertical_Up")]
-        public static void Vertical_Up([TimerTrigger("*/10 * * * * *")] TimerInfo timer, ILogger log)
+        public static void Vertical_Up([TimerTrigger("*/10 * * * * *", RunOnStartup = true)] TimerInfo timer, ILogger log)
         {
             AutoScalerVerticalRun(Scaler.Up, timer, log);
         }
 
         [FunctionName("AutoScaler_Vertical_Down")]
-        public static void Vertical_Down([TimerTrigger("*/10 * * * * *")] TimerInfo timer, ILogger log)
+        public static void Vertical_Down([TimerTrigger("*/10 * * * * *", RunOnStartup = true)] TimerInfo timer, ILogger log)
         {
-           AutoScalerVerticalRun(Scaler.Down, timer, log);
+            AutoScalerVerticalRun(Scaler.Down, timer, log);
         }
 
-        private static Boolean ScaleUp(Scaler scaler,
+        private static bool ScaleUp(Scaler scaler,
                                        UsageInfo usageInfo,
                                        AutoScalerConfiguration autoscalerConfig,
                                        HyperScaleTier targetSlo,
@@ -185,7 +86,7 @@ namespace Azure.SQL.DB.Hyperscale.Tools
         }
 
 
-        private static Boolean ScaleDown(Scaler scaler,
+        private static bool ScaleDown(Scaler scaler,
                                          UsageInfo usageInfo,
                                          AutoScalerConfiguration autoscalerConfig,
                                          HyperScaleTier targetSlo,
@@ -222,14 +123,14 @@ namespace Azure.SQL.DB.Hyperscale.Tools
 
             return false;
         }
-         
+
         private static void AutoScalerVerticalRun(Scaler scaler, TimerInfo timer, ILogger log)
         {
 
             var autoscalerConfig = new AutoScalerConfiguration(scaler.ToString());
 
             string connectionString = Environment.GetEnvironmentVariable("_AzureSQLConnection");
-            string databaseName = (new SqlConnectionStringBuilder(connectionString)).InitialCatalog;
+            string databaseName = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
 
             using (var conn = new SqlConnection(connectionString))
             {
