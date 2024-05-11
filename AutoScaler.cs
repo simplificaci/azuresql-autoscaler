@@ -134,33 +134,15 @@ namespace Azure.SQL.DB.Hyperscale.Tools
             HyperscaleSLOs.Add(5, GEN5);
 
         }
-
-        // INFO -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
-        // INFO  Funções de AutoScaler Up e Down está separado em duas funções propositalmente    
-        // INFO  para que  possa ser verificado em menor tempo quando há necessidade de upgrade,  
-        // INFO  mas só voltará um escala abaixo a cada 1h. Deixando tudo mais estável!           
-        // INFO -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
-
-        [FunctionName("AutoScaler_Horizontal_Up")]
-        public static void Horizontal_Up([TimerTrigger("*/15 * * * * *")] TimerInfo timer, ILogger log)
-        {
-            // TODO Azure Virtual Machine Scale Sets
-        }
-
-        [FunctionName("AutoScaler_Horizontal_Down")]
-        public static void Horizontal_Down([TimerTrigger("*/30 * * * * *")] TimerInfo timer, ILogger log)
-        {
-            //TODO Azure Virtual Machine Scale Sets
-        }
-
+         
         [FunctionName("AutoScaler_Vertical_Up")]
-        public static void Vertical_Up([TimerTrigger("*/15 * * * * *")] TimerInfo timer, ILogger log)
+        public static void Vertical_Up([TimerTrigger("*/10 * * * * *")] TimerInfo timer, ILogger log)
         {
             AutoScalerVerticalRun(Scaler.Up, timer, log);
         }
 
         [FunctionName("AutoScaler_Vertical_Down")]
-        public static void Vertical_Down([TimerTrigger("*/60 * * * *")] TimerInfo timer, ILogger log)
+        public static void Vertical_Down([TimerTrigger("*/10 * * * * *")] TimerInfo timer, ILogger log)
         {
            AutoScalerVerticalRun(Scaler.Down, timer, log);
         }
